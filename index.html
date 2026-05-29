@@ -401,52 +401,31 @@ function renderImageList() {
 // ─── BARCODE ─────────────────────────────────────────────────
 
 function generateBarcodeDataUrl(text, rotated) {
-  return new Promise(function(resolve) {
-    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    document.body.appendChild(svg);
-    try {
-      JsBarcode(svg, text, {
-        format: 'CODE128', width: 2, height: 80,
-        fontSize: 14, margin: 4, displayValue: true,
-      });
-    } catch(e) {
-      document.body.removeChild(svg);
-      resolve(null);
-      return;
-    }
-    var svgData = new XMLSerializer().serializeToString(svg);
-    document.body.removeChild(svg);
+  // Render barcode directly to canvas (no SVG intermediary)
+  var srcCanvas = document.createElement('canvas');
+  try {
+    JsBarcode(srcCanvas, text, {
+      format: 'CODE128', width: 2, height: 80,
+      fontSize: 14, margin: 4, displayValue: true,
+    });
+  } catch(e) {
+    return Promise.resolve(null);
+  }
 
-    var img = new Image();
-    img.onload = function() {
-      var scale = 2;
-      var sw = img.width * scale;
-      var sh = img.height * scale;
-      var canvas = document.createElement('canvas');
+  if (rotated) {
+    var rotCanvas = document.createElement('canvas');
+    rotCanvas.width = srcCanvas.height;
+    rotCanvas.height = srcCanvas.width;
+    var ctx = rotCanvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, rotCanvas.width, rotCanvas.height);
+    ctx.translate(0, srcCanvas.width);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(srcCanvas, 0, 0);
+    return Promise.resolve(rotCanvas.toDataURL('image/png'));
+  }
 
-      if (rotated) {
-        // Rotate 90° CCW: swap width/height
-        canvas.width = sh;
-        canvas.height = sw;
-        var ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.translate(0, sw);
-        ctx.rotate(-Math.PI / 2);
-        ctx.drawImage(img, 0, 0, sw, sh);
-      } else {
-        canvas.width = sw;
-        canvas.height = sh;
-        var ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, sw, sh);
-      }
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = function() { resolve(null); };
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-  });
+  return Promise.resolve(srcCanvas.toDataURL('image/png'));
 }
 
 function loadImageAsDataUrl(file) {
@@ -485,7 +464,10 @@ async function generateLabels() {
       var row = csvData[i];
       if (i > 0) doc.addPage([LW, LH]);
 
-      var skuFull = (row.sku || '').trim() + '-' + (row.size || '').trim();
+      // Use SKU as-is if it already ends with the size, otherwise append size
+      var rawSku = (row.sku || '').trim();
+      var rawSize = (row.size || '').trim();
+      var skuFull = rawSku.endsWith('-' + rawSize) ? rawSku : rawSku + '-' + rawSize;
       var title = ((row.product_name || '') + ' ' + (row.color || '').toUpperCase()).trim();
       var size = (row.size || '').trim();
       var color = (row.color || '').toUpperCase().trim();
