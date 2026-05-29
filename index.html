@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Label Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5; color: #1a1a1a; min-height: 100vh;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 48px 24px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { color: #666; font-size: 15px; margin-bottom: 40px; }
+
+  .step {
+    background: #fff; border: 1px solid #e0e0e0;
+    border-radius: 12px; padding: 24px; margin-bottom: 20px;
+  }
+  .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .step-number {
+    width: 32px; height: 32px; background: #1a1a1a; color: #fff;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; flex-shrink: 0;
+  }
+  .step-title { font-size: 16px; font-weight: 600; }
+
+  .sheet-input-row { display: flex; gap: 10px; margin-bottom: 12px; }
+  .sheet-input-row input {
+    flex: 1; padding: 12px 14px; border: 1px solid #ddd;
+    border-radius: 8px; font-size: 14px; outline: none;
+  }
+  .sheet-input-row input:focus { border-color: #1a1a1a; }
+
+  .btn-sm {
+    padding: 12px 20px; background: #1a1a1a; color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-sm:hover { background: #333; }
+  .btn-sm:disabled { background: #ccc; cursor: not-allowed; }
+
+  .drop-zone {
+    border: 2px dashed #ccc; border-radius: 8px; padding: 32px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    color: #888; font-size: 14px;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: #1a1a1a; background: #fafafa; color: #1a1a1a; }
+  .drop-zone.has-file { border-color: #22c55e; background: #f0fdf4; color: #166534; }
+
+  .file-list { margin-top: 12px; font-size: 13px; color: #444; }
+  .file-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+  .file-item .name { flex: 1; }
+  .file-item .remove { color: #999; cursor: pointer; font-size: 18px; line-height: 1; }
+  .file-item .remove:hover { color: #e00; }
+
+  .csv-preview { margin-top: 12px; max-height: 220px; overflow: auto; font-size: 12px; border: 1px solid #eee; border-radius: 6px; }
+  .csv-preview table { width: 100%; border-collapse: collapse; }
+  .csv-preview th, .csv-preview td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+  .csv-preview th { background: #f9f9f9; font-weight: 600; position: sticky; top: 0; }
+
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 16px 24px; background: #1a1a1a; color: #fff;
+    border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn:hover { background: #333; }
+  .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+  .status { text-align: center; margin-top: 12px; font-size: 14px; color: #666; }
+  .status.error { color: #dc2626; }
+  .status.success { color: #16a34a; }
+  .help-text { font-size: 13px; color: #888; margin-top: 8px; line-height: 1.5; }
+
+  .or-divider { text-align: center; color: #aaa; font-size: 13px; margin: 16px 0; position: relative; }
+  .or-divider::before, .or-divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: #e0e0e0; }
+  .or-divider::before { left: 0; }
+  .or-divider::after { right: 0; }
+
+  .progress-bar-container { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin-top: 12px; overflow: hidden; display: none; }
+  .progress-bar { height: 100%; background: #1a1a1a; border-radius: 3px; transition: width 0.3s ease; width: 0%; }
+
+  .instructions {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+    padding: 12px 16px; margin-top: 12px; font-size: 13px; color: #92400e; line-height: 1.6;
+  }
+  .instructions ol { margin: 4px 0 0 18px; }
+
+  .prompt-box {
+    background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px;
+    padding: 14px 16px; margin-top: 12px; font-size: 13px; line-height: 1.6;
+    color: #333; position: relative;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: #eee; border: none; border-radius: 4px;
+    padding: 4px 10px; font-size: 11px; cursor: pointer; color: #555;
+  }
+  .copy-btn:hover { background: #ddd; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Label Generator</h1>
+  <p class="subtitle">Connect your Google Sheet and upload illustrations to generate print-ready labels.</p>
+
+  <!-- Step 1: Google Sheet -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-title">Load product data</div>
+    </div>
+    <div class="sheet-input-row">
+      <input type="text" id="sheetUrl" placeholder="Paste your Google Sheet published CSV link...">
+      <button class="btn-sm" id="fetchBtn" onclick="fetchSheet()">Load</button>
+    </div>
+    <div class="instructions">
+      <strong>How to get the link:</strong>
+      <ol>
+        <li>Open your Google Sheet</li>
+        <li>Go to <strong>File &rarr; Share &rarr; Publish to web</strong></li>
+        <li>Under "Link", select your sheet tab and choose <strong>Comma-separated values (.csv)</strong></li>
+        <li>Click <strong>Publish</strong>, then copy the link and paste above</li>
+      </ol>
+    </div>
+
+    <div class="or-divider">or upload CSV file directly</div>
+
+    <input type="file" id="csvInput" accept=".csv,.txt" style="display:none">
+    <div class="drop-zone" id="csvDrop">
+      <span id="csvLabel">Drop CSV file here, or click to browse</span>
+    </div>
+    <div id="csvPreview"></div>
+    <div id="sheetStatus" class="status"></div>
+  </div>
+
+  <!-- Step 2: Illustrations -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-title">Upload illustrations</div>
+    </div>
+    <input type="file" id="imgInput" accept=".png,.jpg,.jpeg,.webp,image/*" multiple style="display:none">
+    <div class="drop-zone" id="imgDrop">
+      <span id="imgLabel">Drop illustration files here, or click to browse</span>
+    </div>
+    <p class="help-text">Filenames must match the <code>illustration_file</code> column in your sheet. Optional — labels generate without them.</p>
+    <div class="file-list" id="imgList"></div>
+  </div>
+
+  <!-- Step 3: Prompt reference -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-title">ChatGPT illustration prompt</div>
+    </div>
+    <p class="help-text" style="margin-top:0">Upload your product photo to ChatGPT with this prompt:</p>
+    <div class="prompt-box" id="promptBox">
+      <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+      Create a minimal black line-art technical illustration of this shoe showing only the LEFT shoe from a side profile view (facing right). Use thin clean outlines only — no shading, no fills, no color, no gradients, no shadows. Show key design details like buckles, stitching, mesh patterns, and cutouts as simple line work. The illustration should be on a pure white background with no ground line, no reflections, and no text. Style: flat technical product drawing suitable for a product label.
+    </div>
+  </div>
+
+  <!-- Step 4: Generate -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-title">Generate labels</div>
+    </div>
+    <button class="btn" id="generateBtn" onclick="generateLabels()" disabled>
+      Generate PDF
+    </button>
+    <div class="progress-bar-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<script>
+var jsPDF = window.jspdf.jsPDF;
+var csvData = [];
+var imgFiles = {};
+
+// ─── STATUS & UTILS ──────────────────────────────────────────
+
+function setStatus(msg, type) {
+  var el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status' + (type ? ' ' + type : '');
+}
+
+function setSheetStatus(msg, type) {
+  var el = document.getElementById('sheetStatus');
+  el.textContent = msg;
+  el.className = 'status' + (type ? ' ' + type : '');
+}
+
+function updateBtn() {
+  document.getElementById('generateBtn').disabled = csvData.length === 0;
+}
+
+function copyPrompt() {
+  var text = document.getElementById('promptBox').textContent.replace('Copy', '').trim();
+  navigator.clipboard.writeText(text);
+  var btn = document.querySelector('.copy-btn');
+  btn.textContent = 'Copied!';
+  setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+}
+
+// ─── PROCESS CSV DATA ────────────────────────────────────────
+
+function processCSVResults(results, source) {
+  if (results.errors.length && !results.data.length) {
+    setSheetStatus('Error parsing data: ' + results.errors[0].message, 'error');
+    return;
+  }
+
+  csvData = results.data.filter(function(row) {
+    // Filter out empty rows
+    return row.product_name && row.product_name.trim();
+  });
+
+  var headers = results.meta.fields || [];
+  var required = ['product_name', 'sku', 'size', 'color'];
+  var missing = required.filter(function(h) { return headers.indexOf(h) === -1; });
+
+  if (missing.length) {
+    setSheetStatus('Missing columns: ' + missing.join(', ') + '. Need: product_name, sku, size, color, illustration_file', 'error');
+    csvData = [];
+    updateBtn();
+    return;
+  }
+
+  showPreview(headers, csvData);
+  setSheetStatus('Loaded ' + csvData.length + ' products from ' + source, 'success');
+  updateBtn();
+}
+
+// ─── GOOGLE SHEET ────────────────────────────────────────────
+
+function getPublishedCsvUrl(url) {
+  url = url.trim();
+  // Already a full published CSV URL
+  if (url.indexOf('/pub') !== -1 && url.indexOf('output=csv') !== -1) return url;
+  if (url.indexOf('output=csv') !== -1) return url;
+
+  // Regular sheet URL — convert to published format
+  var match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (match) {
+    var id = match[1];
+    var gidMatch = url.match(/gid=(\d+)/);
+    var gid = gidMatch ? gidMatch[1] : '0';
+    return 'https://docs.google.com/spreadsheets/d/' + id + '/pub?gid=' + gid + '&single=true&output=csv';
+  }
+  return null;
+}
+
+function fetchSheet() {
+  var url = document.getElementById('sheetUrl').value.trim();
+  if (!url) { setSheetStatus('Please paste a URL first', 'error'); return; }
+
+  var btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  setSheetStatus('Connecting to Google Sheet...', '');
+
+  var csvUrl = getPublishedCsvUrl(url);
+  if (!csvUrl) {
+    setSheetStatus('Invalid URL. Paste the link from "Publish to web" (see instructions above).', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Load';
+    return;
+  }
+
+  Papa.parse(csvUrl, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      btn.disabled = false;
+      btn.textContent = 'Load';
+      processCSVResults(results, 'Google Sheet');
+    },
+    error: function(err) {
+      btn.disabled = false;
+      btn.textContent = 'Load';
+      setSheetStatus('Network error loading sheet. Check that the sheet is published to web and try again.', 'error');
+    }
+  });
+}
+
+// ─── CSV FILE UPLOAD ─────────────────────────────────────────
+
+var csvDrop = document.getElementById('csvDrop');
+var csvInput = document.getElementById('csvInput');
+
+csvDrop.addEventListener('click', function(e) { e.stopPropagation(); csvInput.click(); });
+csvDrop.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); csvDrop.classList.add('dragover'); });
+csvDrop.addEventListener('dragleave', function(e) { e.preventDefault(); csvDrop.classList.remove('dragover'); });
+csvDrop.addEventListener('drop', function(e) {
+  e.preventDefault(); e.stopPropagation();
+  csvDrop.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleCSVFile(e.dataTransfer.files[0]);
+});
+csvInput.addEventListener('change', function() {
+  if (csvInput.files.length) {
+    handleCSVFile(csvInput.files[0]);
+    csvInput.value = ''; // Reset so same file can be re-selected
+  }
+});
+
+function handleCSVFile(file) {
+  csvDrop.classList.add('has-file');
+  document.getElementById('csvLabel').textContent = '✓ ' + file.name;
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      processCSVResults(results, file.name);
+    }
+  });
+}
+
+function showPreview(headers, data) {
+  var html = '<div class="csv-preview"><table><tr>';
+  headers.forEach(function(h) { html += '<th>' + h + '</th>'; });
+  html += '</tr>';
+  data.slice(0, 6).forEach(function(row) {
+    html += '<tr>';
+    headers.forEach(function(h) { html += '<td>' + (row[h] || '') + '</td>'; });
+    html += '</tr>';
+  });
+  if (data.length > 6) {
+    html += '<tr><td colspan="' + headers.length + '" style="color:#888;text-align:center">... and ' + (data.length - 6) + ' more rows</td></tr>';
+  }
+  html += '</table></div>';
+  document.getElementById('csvPreview').innerHTML = html;
+}
+
+// ─── ILLUSTRATION UPLOAD ─────────────────────────────────────
+
+var imgDrop = document.getElementById('imgDrop');
+var imgInput = document.getElementById('imgInput');
+
+imgDrop.addEventListener('click', function(e) { e.stopPropagation(); imgInput.click(); });
+imgDrop.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); imgDrop.classList.add('dragover'); });
+imgDrop.addEventListener('dragleave', function(e) { e.preventDefault(); imgDrop.classList.remove('dragover'); });
+imgDrop.addEventListener('drop', function(e) {
+  e.preventDefault(); e.stopPropagation();
+  imgDrop.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleImages(e.dataTransfer.files);
+});
+imgInput.addEventListener('change', function() {
+  if (imgInput.files.length) {
+    handleImages(imgInput.files);
+    imgInput.value = ''; // Reset so same files can be re-selected
+  }
+});
+
+function handleImages(files) {
+  for (var i = 0; i < files.length; i++) {
+    imgFiles[files[i].name] = files[i];
+  }
+  renderImageList();
+}
+
+function removeImage(name) {
+  delete imgFiles[name];
+  renderImageList();
+}
+
+function renderImageList() {
+  var names = Object.keys(imgFiles);
+  var label = document.getElementById('imgLabel');
+  var list = document.getElementById('imgList');
+
+  if (!names.length) {
+    list.innerHTML = '';
+    imgDrop.classList.remove('has-file');
+    label.textContent = 'Drop illustration files here, or click to browse';
+    return;
+  }
+
+  imgDrop.classList.add('has-file');
+  label.textContent = '✓ ' + names.length + ' illustration(s) uploaded';
+
+  var html = '';
+  names.forEach(function(n) {
+    html += '<div class="file-item"><span class="name">' + n + '</span><span class="remove" onclick="removeImage(\'' + n.replace(/'/g, "\\'") + '\')">x</span></div>';
+  });
+  list.innerHTML = html;
+}
+
+// ─── BARCODE ─────────────────────────────────────────────────
+
+function generateBarcodeDataUrl(text) {
+  return new Promise(function(resolve) {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    document.body.appendChild(svg);
+    try {
+      JsBarcode(svg, text, {
+        format: 'CODE128', width: 2, height: 80,
+        fontSize: 14, margin: 4, displayValue: true,
+      });
+    } catch(e) {
+      document.body.removeChild(svg);
+      resolve(null);
+      return;
+    }
+    var svgData = new XMLSerializer().serializeToString(svg);
+    document.body.removeChild(svg);
+
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = img.width * 2;
+      canvas.height = img.height * 2;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = function() { resolve(null); };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  });
+}
+
+function loadImageAsDataUrl(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(e) { resolve(e.target.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── PDF GENERATION ──────────────────────────────────────────
+
+async function generateLabels() {
+  var btn = document.getElementById('generateBtn');
+  var progressContainer = document.getElementById('progressContainer');
+  var progressBar = document.getElementById('progressBar');
+
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  progressContainer.style.display = 'block';
+  progressBar.style.width = '0%';
+  setStatus('');
+
+  try {
+    var LW = 70, LH = 110, PAD = 2, LINE_W = 0.3;
+    var doc = new jsPDF({ unit: 'mm', format: [LW, LH] });
+
+    // Pre-load illustrations
+    var illustrationDataUrls = {};
+    for (var name in imgFiles) {
+      illustrationDataUrls[name] = await loadImageAsDataUrl(imgFiles[name]);
+    }
+
+    for (var i = 0; i < csvData.length; i++) {
+      var row = csvData[i];
+      if (i > 0) doc.addPage([LW, LH]);
+
+      var skuFull = (row.sku || '').trim() + '-' + (row.size || '').trim();
+      var title = ((row.product_name || '') + ' ' + (row.color || '').toUpperCase()).trim();
+      var size = (row.size || '').trim();
+      var color = (row.color || '').toUpperCase().trim();
+
+      doc.setDrawColor(0);
+      doc.setLineWidth(LINE_W);
+
+      // TITLE ZONE (top 22mm)
+      var titleBottom = 22;
+      doc.line(0, titleBottom, LW, titleBottom);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      var titleLines = doc.splitTextToSize(title, LW - 2 * PAD);
+      var lineH = 5.5;
+      var textBlockH = titleLines.length * lineH;
+      var titleStartY = titleBottom / 2 - textBlockH / 2 + 3;
+      titleLines.forEach(function(line, idx) {
+        doc.text(line, PAD, titleStartY + idx * lineH);
+      });
+
+      // FOOTER ZONE (bottom 12mm)
+      var footerTop = LH - 12;
+      doc.line(0, footerTop, LW, footerTop);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('COLOUR: ' + color, PAD, footerTop + 4.5);
+      doc.text('SIZE: ' + size, PAD, footerTop + 8.5);
+
+      // BODY ZONE
+      var bodyTop = titleBottom;
+      var bodyBottom = footerTop;
+      var bodyH = bodyBottom - bodyTop;
+
+      var bcColW = LW * 0.38;
+      doc.line(bcColW, bodyTop, bcColW, bodyBottom);
+
+      var sizeZoneH = bodyH * 0.38;
+      var sizeZoneBottom = bodyTop + sizeZoneH;
+      doc.line(bcColW, sizeZoneBottom, LW, sizeZoneBottom);
+
+      // Size number
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(52);
+      var sizeCenterX = bcColW + (LW - bcColW) / 2;
+      doc.text(String(size), sizeCenterX, bodyTop + sizeZoneH / 2 + 7, { align: 'center' });
+
+      // Illustration
+      var illustFile = (row.illustration_file || '').trim();
+      if (illustFile && illustrationDataUrls[illustFile]) {
+        var illMaxW = (LW - bcColW) - 2 * PAD;
+        var illMaxH = (bodyBottom - sizeZoneBottom) - 2 * PAD;
+        var illX = bcColW + PAD;
+        var illY = sizeZoneBottom + PAD;
+
+        var tmpImg = new Image();
+        await new Promise(function(resolve) {
+          tmpImg.onload = resolve;
+          tmpImg.src = illustrationDataUrls[illustFile];
+        });
+        var imgRatio = tmpImg.width / tmpImg.height;
+        var drawW = illMaxW, drawH = drawW / imgRatio;
+        if (drawH > illMaxH) { drawH = illMaxH; drawW = drawH * imgRatio; }
+        var offsetX = illX + (illMaxW - drawW) / 2;
+        var offsetY = illY + (illMaxH - drawH) / 2;
+        doc.addImage(illustrationDataUrls[illustFile], 'PNG', offsetX, offsetY, drawW, drawH);
+      } else if (illustFile) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6);
+        doc.text('[' + illustFile + ']', sizeCenterX, sizeZoneBottom + (bodyBottom - sizeZoneBottom) / 2, { align: 'center' });
+      }
+
+      // Barcode (rotated 90 CCW)
+      var barcodeDataUrl = await generateBarcodeDataUrl(skuFull);
+      if (barcodeDataUrl) {
+        var bcDrawW = bcColW - 1.5 * PAD;
+        var bcDrawH = bodyH - 1.5 * PAD;
+        var bcCX = bcColW / 2;
+        var bcCY = bodyTop + bodyH / 2;
+        var angle = -90 * Math.PI / 180;
+        var cos = Math.cos(angle), sin = Math.sin(angle);
+
+        doc.internal.write(
+          'q ' + cos.toFixed(6) + ' ' + sin.toFixed(6) + ' ' +
+          (-sin).toFixed(6) + ' ' + cos.toFixed(6) + ' ' +
+          (bcCX * 2.83465).toFixed(4) + ' ' + (bcCY * 2.83465).toFixed(4) + ' cm'
+        );
+        doc.addImage(barcodeDataUrl, 'PNG', -bcDrawH / 2, -bcDrawW / 2, bcDrawH, bcDrawW);
+        doc.internal.write('Q');
+      }
+
+      progressBar.style.width = ((i + 1) / csvData.length * 100) + '%';
+      await new Promise(function(r) { setTimeout(r, 0); });
+    }
+
+    doc.save('labels.pdf');
+    setStatus('PDF downloaded — ' + csvData.length + ' labels generated', 'success');
+
+  } catch (e) {
+    console.error(e);
+    setStatus('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate PDF';
+    setTimeout(function() { progressContainer.style.display = 'none'; }, 2000);
+  }
+}
+</script>
+</body>
+</html>
