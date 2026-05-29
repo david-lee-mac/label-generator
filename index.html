@@ -406,7 +406,7 @@ function generateBarcodeDataUrl(text) {
   try {
     JsBarcode(srcCanvas, text, {
       format: 'CODE128', width: 2, height: 80,
-      fontSize: 14, margin: 4, displayValue: true,
+      fontSize: 0, margin: 4, displayValue: false,
     });
   } catch(e) {
     console.error('Barcode generation failed:', e);
@@ -470,7 +470,7 @@ async function generateLabels() {
       var rawSku = (row.sku || '').trim();
       var rawSize = (row.size || '').trim();
       var skuFull = rawSku.endsWith('-' + rawSize) ? rawSku : rawSku + '-' + rawSize;
-      var title = ((row.product_name || '') + ' ' + (row.color || '').toUpperCase()).trim();
+      var title = (row.product_name || '').toUpperCase().trim();
       var size = (row.size || '').trim();
       var color = (row.color || '').toUpperCase().trim();
 
@@ -481,12 +481,21 @@ async function generateLabels() {
       var titleBottom = 22;
       doc.line(0, titleBottom, LW, titleBottom);
 
+      // Auto-size title to fill the title zone
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      var titleLines = doc.splitTextToSize(title, LW - 2 * PAD);
-      var lineH = 5.5;
-      var textBlockH = titleLines.length * lineH;
-      var titleStartY = titleBottom / 2 - textBlockH / 2 + 3;
+      var titleMaxW = LW - 2 * PAD;
+      var titleFontSize = 18;
+      var titleLines, lineH, textBlockH;
+      // Try decreasing font size until text fits in the title zone
+      while (titleFontSize >= 10) {
+        doc.setFontSize(titleFontSize);
+        titleLines = doc.splitTextToSize(title, titleMaxW);
+        lineH = titleFontSize * 0.45;
+        textBlockH = titleLines.length * lineH;
+        if (textBlockH <= titleBottom - 4) break;
+        titleFontSize -= 1;
+      }
+      var titleStartY = titleBottom / 2 - textBlockH / 2 + lineH * 0.6;
       titleLines.forEach(function(line, idx) {
         doc.text(line, PAD, titleStartY + idx * lineH);
       });
@@ -564,6 +573,13 @@ async function generateLabels() {
       } else {
         console.error('Barcode generation returned null for:', skuFull);
       }
+
+      // SKU text on left side of barcode column, facing left (rotated 90° CCW)
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      var skuX = bcColW - 2;
+      var skuY = bodyTop + bodyH / 2;
+      doc.text(skuFull, skuX, skuY, { angle: 90 });
 
       progressBar.style.width = ((i + 1) / csvData.length * 100) + '%';
       await new Promise(function(r) { setTimeout(r, 0); });
