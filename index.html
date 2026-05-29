@@ -400,8 +400,8 @@ function renderImageList() {
 
 // ─── BARCODE ─────────────────────────────────────────────────
 
-function generateBarcodeDataUrl(text, rotated) {
-  // Render barcode directly to canvas (no SVG intermediary)
+function generateBarcodeDataUrl(text) {
+  // Render barcode directly to canvas, then rotate 90° CCW
   var srcCanvas = document.createElement('canvas');
   try {
     JsBarcode(srcCanvas, text, {
@@ -409,23 +409,25 @@ function generateBarcodeDataUrl(text, rotated) {
       fontSize: 14, margin: 4, displayValue: true,
     });
   } catch(e) {
-    return Promise.resolve(null);
+    console.error('Barcode generation failed:', e);
+    return null;
   }
 
-  if (rotated) {
-    var rotCanvas = document.createElement('canvas');
-    rotCanvas.width = srcCanvas.height;
-    rotCanvas.height = srcCanvas.width;
-    var ctx = rotCanvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, rotCanvas.width, rotCanvas.height);
-    ctx.translate(0, srcCanvas.width);
-    ctx.rotate(-Math.PI / 2);
-    ctx.drawImage(srcCanvas, 0, 0);
-    return Promise.resolve(rotCanvas.toDataURL('image/png'));
-  }
+  // Rotate 90° CCW for vertical placement
+  var w = srcCanvas.width;
+  var h = srcCanvas.height;
+  var rotCanvas = document.createElement('canvas');
+  rotCanvas.width = h;
+  rotCanvas.height = w;
+  var ctx = rotCanvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, h, w);
+  // Rotate around center
+  ctx.translate(h / 2, w / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.drawImage(srcCanvas, -w / 2, -h / 2);
 
-  return Promise.resolve(srcCanvas.toDataURL('image/png'));
+  return rotCanvas.toDataURL('image/png');
 }
 
 function loadImageAsDataUrl(file) {
@@ -546,14 +548,21 @@ async function generateLabels() {
         doc.text('[' + illustFile + ']', sizeCenterX, sizeZoneBottom + (bodyBottom - sizeZoneBottom) / 2, { align: 'center' });
       }
 
-      // Barcode (already rotated 90° CCW via canvas)
-      var barcodeDataUrl = await generateBarcodeDataUrl(skuFull, true);
+      // Barcode (rotated 90° CCW via canvas)
+      var barcodeDataUrl = generateBarcodeDataUrl(skuFull);
       if (barcodeDataUrl) {
-        var bcAreaW = bcColW - PAD;
-        var bcAreaH = bodyH - PAD;
-        var bcX = PAD / 2;
-        var bcY = bodyTop + PAD / 2;
-        doc.addImage(barcodeDataUrl, 'PNG', bcX, bcY, bcAreaW, bcAreaH);
+        var bcMargin = 1.5;
+        var bcX = bcMargin;
+        var bcY = bodyTop + bcMargin;
+        var bcW = bcColW - 2 * bcMargin;
+        var bcH = bodyH - 2 * bcMargin;
+        try {
+          doc.addImage(barcodeDataUrl, 'PNG', bcX, bcY, bcW, bcH);
+        } catch(e) {
+          console.error('Failed to add barcode image:', e);
+        }
+      } else {
+        console.error('Barcode generation returned null for:', skuFull);
       }
 
       progressBar.style.width = ((i + 1) / csvData.length * 100) + '%';
