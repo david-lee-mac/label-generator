@@ -413,7 +413,7 @@ function generateBarcodeDataUrl(text) {
     return null;
   }
 
-  // Rotate 90° CCW for vertical placement
+  // Rotate 90° CW for vertical placement (SKU text on left)
   var w = srcCanvas.width;
   var h = srcCanvas.height;
   var rotCanvas = document.createElement('canvas');
@@ -424,7 +424,7 @@ function generateBarcodeDataUrl(text) {
   ctx.fillRect(0, 0, h, w);
   // Rotate around center
   ctx.translate(h / 2, w / 2);
-  ctx.rotate(-Math.PI / 2);
+  ctx.rotate(Math.PI / 2);
   ctx.drawImage(srcCanvas, -w / 2, -h / 2);
 
   return rotCanvas.toDataURL('image/png');
