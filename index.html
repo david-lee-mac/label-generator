@@ -406,7 +406,7 @@ function generateBarcodeDataUrl(text) {
   try {
     JsBarcode(srcCanvas, text, {
       format: 'CODE128', width: 2, height: 80,
-      fontSize: 0, margin: 4, displayValue: false,
+      fontSize: 14, margin: 4, displayValue: true,
     });
   } catch(e) {
     console.error('Barcode generation failed:', e);
@@ -574,12 +574,7 @@ async function generateLabels() {
         console.error('Barcode generation returned null for:', skuFull);
       }
 
-      // SKU text on left side of barcode column, facing left (rotated 90° CCW)
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      var skuX = bcColW - 2;
-      var skuY = bodyTop + bodyH / 2;
-      doc.text(skuFull, skuX, skuY, { angle: 90 });
+      // SKU text is now part of the barcode image (displayValue: true), rotated together
 
       progressBar.style.width = ((i + 1) / csvData.length * 100) + '%';
       await new Promise(function(r) { setTimeout(r, 0); });
