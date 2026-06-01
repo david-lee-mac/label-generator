@@ -405,7 +405,7 @@ function generateBarcodeDataUrl(text) {
   var srcCanvas = document.createElement('canvas');
   try {
     JsBarcode(srcCanvas, text, {
-      format: 'CODE128', width: 2, height: 80,
+      format: 'CODE128', width: 2, height: 120,
       fontSize: 14, margin: 4, displayValue: true,
     });
   } catch(e) {
@@ -505,8 +505,9 @@ async function generateLabels() {
       doc.line(0, footerTop, LW, footerTop);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text('COLOUR: ' + color, PAD, footerTop + 4.5);
-      doc.text('SIZE: ' + size, PAD, footerTop + 8.5);
+      var footerRightX = LW - PAD;
+      doc.text('COLOUR: ' + color, footerRightX, footerTop + 4.5, { align: 'right' });
+      doc.text('SIZE: ' + size, footerRightX, footerTop + 8.5, { align: 'right' });
 
       // BODY ZONE
       var bodyTop = titleBottom;
@@ -557,10 +558,10 @@ async function generateLabels() {
         doc.text('[' + illustFile + ']', sizeCenterX, sizeZoneBottom + (bodyBottom - sizeZoneBottom) / 2, { align: 'center' });
       }
 
-      // Barcode (rotated 90° CCW via canvas)
+      // Barcode (rotated 90° CW via canvas) — full height of blue zone
       var barcodeDataUrl = generateBarcodeDataUrl(skuFull);
       if (barcodeDataUrl) {
-        var bcMargin = 1.5;
+        var bcMargin = 1;
         var bcX = bcMargin;
         var bcY = bodyTop + bcMargin;
         var bcW = bcColW - 2 * bcMargin;
