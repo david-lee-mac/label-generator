@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Label Generator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='8' y='4' width='48' height='56' rx='4' fill='%23fff' stroke='%23222' stroke-width='3'/><rect x='16' y='14' width='4' height='30' fill='%23222'/><rect x='22' y='14' width='2' height='30' fill='%23222'/><rect x='26' y='14' width='4' height='30' fill='%23222'/><rect x='32' y='14' width='2' height='30' fill='%23222'/><rect x='36' y='14' width='3' height='30' fill='%23222'/><rect x='41' y='14' width='2' height='30' fill='%23222'/><rect x='45' y='14' width='3' height='30' fill='%23222'/><text x='32' y='56' text-anchor='middle' font-size='10' font-family='sans-serif' fill='%23222'>SKU</text></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -514,7 +515,7 @@ async function generateLabels() {
       var bodyBottom = footerTop;
       var bodyH = bodyBottom - bodyTop;
 
-      var bcColW = LW * 0.38;
+      var bcColW = LW * 0.50;
       doc.line(bcColW, bodyTop, bcColW, bodyBottom);
 
       var sizeZoneH = bodyH * 0.38;
