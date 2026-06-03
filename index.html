@@ -406,8 +406,8 @@ function generateBarcodeDataUrl(text) {
   var srcCanvas = document.createElement('canvas');
   try {
     JsBarcode(srcCanvas, text, {
-      format: 'CODE128', width: 2, height: 120,
-      fontSize: 14, margin: 4, displayValue: true,
+      format: 'CODE128', width: 4, height: 200,
+      fontSize: 28, margin: 8, displayValue: true, font: 'monospace', textMargin: 6,
     });
   } catch(e) {
     console.error('Barcode generation failed:', e);
