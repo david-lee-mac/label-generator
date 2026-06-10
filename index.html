@@ -782,17 +782,17 @@ function updatePreview() {
     }
   }
 
-  // ── Barcode (real JsBarcode) ──
+  // ── Barcode (real JsBarcode) with quiet zone padding ──
   if (s.showBarcode) {
     var bcDataUrl = generateBarcodeDataUrl(d.sku, s.showSKU, s.barThickness);
     if (bcDataUrl) {
       var bcImg = new Image();
       bcImg.src = bcDataUrl;
-      // Barcode fills from bodyTop to LH (full left column)
-      var bX = 0;
-      var bY = L.bodyTop * sc;
-      var bW = L.bcColW * sc;
-      var bH = (L.LH - L.bodyTop) * sc;
+      var bcPad = 2 * sc; // 2mm quiet zone
+      var bX = bcPad;
+      var bY = L.bodyTop * sc + bcPad;
+      var bW = L.bcColW * sc - 2 * bcPad;
+      var bH = (L.LH - L.bodyTop) * sc - 2 * bcPad;
       try { ctx.drawImage(bcImg, bX, bY, bW, bH); } catch(e) {}
     }
   }
@@ -951,15 +951,15 @@ async function generateLabels() {
         doc.text('[' + illustFile + ']', sizeCenterX, L.sizeZoneBottom + (L.footerTop - L.sizeZoneBottom) / 2, { align: 'center' });
       }
 
-      // ── Barcode (fills from bodyTop to LH — full left column) ──
+      // ── Barcode with quiet zone padding ──
       if (settings.showBarcode) {
         var barcodeDataUrl = generateBarcodeDataUrl(skuFull, settings.showSKU, settings.barThickness);
         if (barcodeDataUrl) {
-          // No margin — fill edge to edge
-          var bcX = 0;
-          var bcY = L.bodyTop;
-          var bcW = L.bcColW;
-          var bcH = LH - L.bodyTop;
+          var bcPad = 2; // 2mm quiet zone
+          var bcX = bcPad;
+          var bcY = L.bodyTop + bcPad;
+          var bcW = L.bcColW - 2 * bcPad;
+          var bcH = LH - L.bodyTop - 2 * bcPad;
           try {
             doc.addImage(barcodeDataUrl, 'PNG', bcX, bcY, bcW, bcH);
           } catch(e) {
