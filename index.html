@@ -621,10 +621,10 @@ function updatePreview() {
       ctx.fillText('COLOUR: ' + sampleColour, W - 2 * scale, fy); fy += 4 * scale;
       ctx.fillText('SIZE: ' + sampleSize, W - 2 * scale, fy);
     } else if (s.showColour) {
-      ctx.font = (12 * scale / 4) + 'px -apple-system, sans-serif';
+      ctx.font = (10 * scale / 4) + 'px -apple-system, sans-serif';
       ctx.fillText('COLOUR: ' + sampleColour, W - 2 * scale, footerMidY);
     } else if (s.showSizeFooter) {
-      ctx.font = (12 * scale / 4) + 'px -apple-system, sans-serif';
+      ctx.font = (10 * scale / 4) + 'px -apple-system, sans-serif';
       ctx.fillText('SIZE: ' + sampleSize, W - 2 * scale, footerMidY);
     }
     ctx.textAlign = 'left';
@@ -822,12 +822,12 @@ async function generateLabels() {
           doc.text('COLOUR: ' + color, footerRightX, footerTop + 4.5, { align: 'right' });
           doc.text('SIZE: ' + size, footerRightX, footerTop + 8.5, { align: 'right' });
         } else if (settings.showColour) {
-          // Only colour — scale up and center vertically
-          doc.setFontSize(12);
+          // Only colour — slightly larger, centered
+          doc.setFontSize(10);
           doc.text('COLOUR: ' + color, footerRightX, footerTop + 7, { align: 'right' });
         } else if (settings.showSizeFooter) {
-          // Only size — scale up and center vertically
-          doc.setFontSize(12);
+          // Only size — slightly larger, centered
+          doc.setFontSize(10);
           doc.text('SIZE: ' + size, footerRightX, footerTop + 7, { align: 'right' });
         }
       }
@@ -845,10 +845,10 @@ async function generateLabels() {
       if (settings.showDividers && (settings.showSize || settings.showIllustration)) doc.line(bcColW, sizeZoneBottom, LW, sizeZoneBottom);
 
       // Size number
+      var sizeCenterX = bcColW + (LW - bcColW) / 2;
       if (settings.showSize) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(52);
-        var sizeCenterX = bcColW + (LW - bcColW) / 2;
         doc.text(String(size), sizeCenterX, bodyTop + sizeZoneH / 2 + 7, { align: 'center' });
       }
 
