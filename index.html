@@ -126,11 +126,8 @@
   .template-option .tpl-icon { font-size: 28px; margin-bottom: 6px; }
   .template-option .tpl-name { font-size: 14px; font-weight: 600; }
   .template-option .tpl-desc { font-size: 12px; color: #888; margin-top: 2px; }
-  .settings-detail { transition: all 0.3s; }
-  .settings-detail.collapsed { display: none; }
 
-  .preview-row { display: flex; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
-  .preview-container { display: flex; justify-content: center; flex: 1; }
+  .preview-container { display: flex; justify-content: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
   .preview-label {
     width: 210px; height: 330px; background: #fff; border: 1px solid #ddd;
     border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: relative; overflow: hidden;
@@ -346,7 +343,6 @@ function processCSVResults(results, source) {
   }
 
   csvData = results.data.filter(function(row) {
-    // Filter out empty rows
     return row.product_name && row.product_name.trim();
   });
 
@@ -361,7 +357,7 @@ function processCSVResults(results, source) {
     return;
   }
 
-  showPreview(headers, csvData);
+  showCSVPreview(headers, csvData);
   setSheetStatus('Loaded ' + csvData.length + ' products from ' + source, 'success');
   updateBtn();
   updatePreview();
@@ -371,11 +367,9 @@ function processCSVResults(results, source) {
 
 function getPublishedCsvUrl(url) {
   url = url.trim();
-  // Already a full published CSV URL
   if (url.indexOf('/pub') !== -1 && url.indexOf('output=csv') !== -1) return url;
   if (url.indexOf('output=csv') !== -1) return url;
 
-  // Regular sheet URL — convert to published format
   var match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   if (match) {
     var id = match[1];
@@ -412,7 +406,7 @@ function fetchSheet() {
       btn.textContent = 'Load';
       processCSVResults(results, 'Google Sheet');
     },
-    error: function(err) {
+    error: function() {
       btn.disabled = false;
       btn.textContent = 'Load';
       setSheetStatus('Network error loading sheet. Check that the sheet is published to web and try again.', 'error');
@@ -436,7 +430,7 @@ csvDrop.addEventListener('drop', function(e) {
 csvInput.addEventListener('change', function() {
   if (csvInput.files.length) {
     handleCSVFile(csvInput.files[0]);
-    csvInput.value = ''; // Reset so same file can be re-selected
+    csvInput.value = '';
   }
 });
 
@@ -453,7 +447,7 @@ function handleCSVFile(file) {
   });
 }
 
-function showPreview(headers, data) {
+function showCSVPreview(headers, data) {
   var html = '<div class="csv-preview"><table><tr>';
   headers.forEach(function(h) { html += '<th>' + h + '</th>'; });
   html += '</tr>';
@@ -485,7 +479,7 @@ imgDrop.addEventListener('drop', function(e) {
 imgInput.addEventListener('change', function() {
   if (imgInput.files.length) {
     handleImages(imgInput.files);
-    imgInput.value = ''; // Reset so same files can be re-selected
+    imgInput.value = '';
   }
 });
 
@@ -533,7 +527,6 @@ function selectTemplate(tpl) {
   document.getElementById('tplBarcode').classList.toggle('active', tpl === 'barcode');
 
   if (tpl === 'barcode') {
-    // Set defaults for barcode-only (user can still toggle)
     document.getElementById('showBarcode').checked = true;
     document.getElementById('showSKU').checked = true;
     document.getElementById('showTitle').checked = true;
@@ -545,7 +538,6 @@ function selectTemplate(tpl) {
     document.getElementById('bcWidthSlider').value = 100;
     document.getElementById('bcWidthVal').textContent = '100%';
   } else {
-    // Restore full label defaults
     document.getElementById('showBarcode').checked = true;
     document.getElementById('showSKU').checked = true;
     document.getElementById('showTitle').checked = true;
@@ -560,10 +552,10 @@ function selectTemplate(tpl) {
   updatePreview();
 }
 
-// ─── LIVE PREVIEW ───────────────────────────────────────────
+// ─── SETTINGS ───────────────────────────────────────────────
 
 function getSettings() {
-  var s = {
+  return {
     template: currentTemplate,
     bcWidth: parseInt(document.getElementById('bcWidthSlider').value) / 100,
     barThickness: parseInt(document.getElementById('barThickSlider').value),
@@ -577,131 +569,231 @@ function getSettings() {
     showSizeFooter: document.getElementById('showSizeFooter').checked,
     showDividers: document.getElementById('showDividers').checked,
   };
-  return s;
 }
+
+function getSampleData() {
+  var d = { title: 'SAMPLE PRODUCT NAME', sku: 'SKU-001-35', size: '35', colour: 'BLACK' };
+  if (csvData.length) {
+    var r = csvData[0];
+    d.title = (r.product_name || '').toUpperCase().trim() || d.title;
+    var rawSku = (r.sku || '').trim();
+    var rawSize = (r.size || '').trim();
+    d.sku = rawSku.endsWith('-' + rawSize) ? rawSku : rawSku + '-' + rawSize;
+    d.size = rawSize || d.size;
+    d.colour = (r.color || '').toUpperCase().trim() || d.colour;
+  }
+  return d;
+}
+
+// ─── SHARED LAYOUT CALCULATOR ───────────────────────────────
+// Returns layout zones in mm (used by both preview and PDF)
+
+function calcLayout(s) {
+  var LW = 70, LH = 110;
+  var titleH = s.showTitle ? 22 : 0;
+  var hasFooter = s.showColour || s.showSizeFooter;
+  var footerH = hasFooter ? 12 : 0;
+  var bodyTop = titleH;
+  var footerTop = LH - footerH;
+  var bodyH = footerTop - bodyTop;
+  var bcColW = LW * s.bcWidth;
+  var rightX = bcColW;
+  var rightW = LW - bcColW;
+  var sizeZoneH = bodyH * 0.38;
+
+  return {
+    LW: LW, LH: LH,
+    titleH: titleH, titleBottom: titleH,
+    footerTop: footerTop, footerH: footerH, hasFooter: hasFooter,
+    bodyTop: bodyTop, bodyH: bodyH,
+    bcColW: bcColW,
+    rightX: rightX, rightW: rightW,
+    sizeZoneH: sizeZoneH,
+    sizeZoneBottom: bodyTop + sizeZoneH,
+  };
+}
+
+// ─── BARCODE GENERATION ─────────────────────────────────────
+
+function generateBarcodeDataUrl(text, showSKU, barWidth) {
+  var srcCanvas = document.createElement('canvas');
+  try {
+    JsBarcode(srcCanvas, text, {
+      format: 'CODE128',
+      width: barWidth || 4,
+      height: 200,
+      fontSize: 28,
+      margin: 8,
+      displayValue: showSKU !== false,
+      font: 'monospace',
+      textMargin: 6,
+    });
+  } catch(e) {
+    console.error('Barcode generation failed:', e);
+    return null;
+  }
+
+  // Rotate 90 CW
+  var w = srcCanvas.width, h = srcCanvas.height;
+  var rotCanvas = document.createElement('canvas');
+  rotCanvas.width = h;
+  rotCanvas.height = w;
+  var ctx = rotCanvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, h, w);
+  ctx.translate(h / 2, w / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(srcCanvas, -w / 2, -h / 2);
+
+  return rotCanvas.toDataURL('image/png');
+}
+
+function loadImageAsDataUrl(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(e) { resolve(e.target.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── LIVE PREVIEW ───────────────────────────────────────────
 
 function updatePreview() {
   var canvas = document.getElementById('previewCanvas');
   var ctx = canvas.getContext('2d');
   var s = getSettings();
+  var d = getSampleData();
+  var L = calcLayout(s);
 
-  // Label dimensions in canvas pixels (70x110mm scaled up)
   var W = 280, H = 440;
-  var scale = W / 70; // 4px per mm
-  canvas.width = W; canvas.height = H;
+  var sc = W / L.LW; // scale: canvas px per mm
+  canvas.width = W;
+  canvas.height = H;
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = '#000000';
+  ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
 
-  // Use sample data or first row from CSV
-  var sampleTitle = 'SAMPLE PRODUCT NAME';
-  var sampleSku = 'SKU-001-35';
-  var sampleSize = '35';
-  var sampleColour = 'BLACK';
-  if (csvData.length) {
-    var r = csvData[0];
-    sampleTitle = (r.product_name || '').toUpperCase().trim() || sampleTitle;
-    var rawSku = (r.sku || '').trim();
-    var rawSize = (r.size || '').trim();
-    sampleSku = rawSku.endsWith('-' + rawSize) ? rawSku : rawSku + '-' + rawSize;
-    sampleSize = rawSize || sampleSize;
-    sampleColour = (r.color || '').toUpperCase().trim() || sampleColour;
-  }
-
-  // Title zone
-  var titleBottom = s.showTitle ? 22 * scale : 0;
-  if (s.showDividers && s.showTitle) { ctx.beginPath(); ctx.moveTo(0, titleBottom); ctx.lineTo(W, titleBottom); ctx.stroke(); }
+  // ── Title ──
   if (s.showTitle) {
-    ctx.font = 'bold ' + (16 * scale / 4) + 'px -apple-system, sans-serif';
+    ctx.font = 'bold ' + (16 * sc / 4) + 'px -apple-system, sans-serif';
     ctx.fillStyle = '#000';
     ctx.textBaseline = 'middle';
-    var lines = wrapText(ctx, sampleTitle, W - 2 * scale * 2);
-    var lh = 18 * scale / 4;
-    var startY = titleBottom / 2 - (lines.length * lh) / 2 + lh / 2;
-    lines.forEach(function(line, i) { ctx.fillText(line, 2 * scale, startY + i * lh); });
+    var titleW = W - 4 * sc;
+    var lines = wrapText(ctx, d.title, titleW);
+    var lh = 18 * sc / 4;
+    var tBlockH = lines.length * lh;
+    var tStartY = (L.titleBottom * sc) / 2 - tBlockH / 2 + lh / 2;
+    lines.forEach(function(line, i) { ctx.fillText(line, 2 * sc, tStartY + i * lh); });
   }
 
-  // Footer zone
-  var hasFooter = s.showColour || s.showSizeFooter;
-  var footerTop = hasFooter ? H - 12 * scale : H;
-  if (s.showDividers && hasFooter) { ctx.beginPath(); ctx.moveTo(0, footerTop); ctx.lineTo(W, footerTop); ctx.stroke(); }
-  if (hasFooter) {
+  // ── Title divider (full width) ──
+  if (s.showDividers && s.showTitle) {
+    ctx.beginPath();
+    ctx.moveTo(0, L.titleBottom * sc);
+    ctx.lineTo(W, L.titleBottom * sc);
+    ctx.stroke();
+  }
+
+  // ── Footer ──
+  var ftY = L.footerTop * sc;
+  if (L.hasFooter) {
+    // Footer divider — only on right side if barcode present
+    if (s.showDividers) {
+      var divStartX = s.showBarcode ? L.bcColW * sc : 0;
+      ctx.beginPath();
+      ctx.moveTo(divStartX, ftY);
+      ctx.lineTo(W, ftY);
+      ctx.stroke();
+    }
+
     ctx.fillStyle = '#000';
     ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    var footerMidY = footerTop + (H - footerTop) / 2;
-    var ffs = s.footerFontSize * scale / 4;
+    var ffs = s.footerFontSize * sc / 4;
     ctx.font = ffs + 'px -apple-system, sans-serif';
+    var footerMidY = ftY + (H - ftY) / 2;
+
     if (s.showColour && s.showSizeFooter) {
       ctx.textBaseline = 'top';
-      var fy = footerTop + 4 * scale / 2;
-      ctx.fillText('COLOUR: ' + sampleColour, W - 2 * scale, fy); fy += 4 * scale;
-      ctx.fillText('SIZE: ' + sampleSize, W - 2 * scale, fy);
+      var fy = ftY + 2 * sc;
+      ctx.fillText('COLOUR: ' + d.colour, W - 2 * sc, fy);
+      fy += 4 * sc;
+      ctx.fillText('SIZE: ' + d.size, W - 2 * sc, fy);
     } else if (s.showColour) {
-      ctx.fillText('COLOUR: ' + sampleColour, W - 2 * scale, footerMidY);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('COLOUR: ' + d.colour, W - 2 * sc, footerMidY);
     } else if (s.showSizeFooter) {
-      ctx.fillText('SIZE: ' + sampleSize, W - 2 * scale, footerMidY);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SIZE: ' + d.size, W - 2 * sc, footerMidY);
     }
     ctx.textAlign = 'left';
   }
 
-  // Body zone
-  var bodyTop = titleBottom;
-  var bodyH = footerTop - bodyTop;
-  var bcColW = W * s.bcWidth;
+  // ── Vertical barcode/right divider ──
+  if (s.showDividers && L.bcColW < L.LW) {
+    var divTop = L.bodyTop * sc;
+    var divBot = L.footerTop * sc;
+    ctx.beginPath();
+    ctx.moveTo(L.bcColW * sc, divTop);
+    ctx.lineTo(L.bcColW * sc, divBot);
+    ctx.stroke();
+  }
 
-  if (s.showDividers) { ctx.beginPath(); ctx.moveTo(bcColW, bodyTop); ctx.lineTo(bcColW, footerTop); ctx.stroke(); }
+  // ── Size / illustration horizontal divider (right side only) ──
+  if (s.showDividers && (s.showSize || s.showIllustration) && L.bcColW < L.LW) {
+    ctx.beginPath();
+    ctx.moveTo(L.bcColW * sc, L.sizeZoneBottom * sc);
+    ctx.lineTo(W, L.sizeZoneBottom * sc);
+    ctx.stroke();
+  }
 
-  var sizeZoneH = bodyH * 0.38;
-  var sizeZoneBottom = bodyTop + sizeZoneH;
-  if (s.showDividers && (s.showSize || s.showIllustration)) { ctx.beginPath(); ctx.moveTo(bcColW, sizeZoneBottom); ctx.lineTo(W, sizeZoneBottom); ctx.stroke(); }
-
-  // Size number
-  if (s.showSize) {
-    ctx.font = 'bold ' + (52 * scale / 4) + 'px -apple-system, sans-serif';
+  // ── Size number ──
+  if (s.showSize && L.rightW > 0) {
+    ctx.font = 'bold ' + (52 * sc / 4) + 'px -apple-system, sans-serif';
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(sampleSize, bcColW + (W - bcColW) / 2, bodyTop + sizeZoneH / 2);
+    var sizeCX = (L.rightX + L.LW) / 2 * sc;
+    ctx.fillText(d.size, sizeCX, (L.bodyTop + L.sizeZoneH / 2) * sc);
     ctx.textAlign = 'left';
   }
 
-  // Illustration placeholder
-  if (s.showIllustration) {
-    var illX = bcColW + 3 * scale;
-    var illY = sizeZoneBottom + 3 * scale;
-    var illW = (W - bcColW) - 6 * scale;
-    var illH = (footerTop - sizeZoneBottom) - 6 * scale;
-    ctx.strokeStyle = '#ccc';
-    ctx.setLineDash([4, 4]);
-    ctx.strokeRect(illX, illY, illW, illH);
-    ctx.setLineDash([]);
-    ctx.strokeStyle = '#000';
-    ctx.font = (10 * scale / 4) + 'px -apple-system, sans-serif';
-    ctx.fillStyle = '#ccc';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('[illustration]', illX + illW / 2, illY + illH / 2);
-    ctx.fillStyle = '#000';
-    ctx.textAlign = 'left';
+  // ── Illustration placeholder ──
+  if (s.showIllustration && L.rightW > 0) {
+    var iX = L.rightX * sc + 3 * sc;
+    var iY = L.sizeZoneBottom * sc + 3 * sc;
+    var iW = L.rightW * sc - 6 * sc;
+    var iH = (L.footerTop - L.sizeZoneBottom) * sc - 6 * sc;
+    if (iW > 0 && iH > 0) {
+      ctx.strokeStyle = '#ccc';
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(iX, iY, iW, iH);
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#000';
+      ctx.font = (10 * sc / 4) + 'px -apple-system, sans-serif';
+      ctx.fillStyle = '#ccc';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('[illustration]', iX + iW / 2, iY + iH / 2);
+      ctx.fillStyle = '#000';
+      ctx.textAlign = 'left';
+    }
   }
 
-  // Real barcode using JsBarcode — spans full left column to label bottom
+  // ── Barcode (real JsBarcode) ──
   if (s.showBarcode) {
-    var bcM = 1 * scale;
-    var bcX = bcM;
-    var bcY = bodyTop + bcM;
-    var bcW = bcColW - 2 * bcM;
-    var bcH = H - bodyTop - 2 * bcM;
-
-    var bcDataUrl = generateBarcodeDataUrl(sampleSku, s.showSKU, s.barThickness);
+    var bcDataUrl = generateBarcodeDataUrl(d.sku, s.showSKU, s.barThickness);
     if (bcDataUrl) {
       var bcImg = new Image();
       bcImg.src = bcDataUrl;
-      // Draw immediately since it's a data URL (already loaded)
-      try { ctx.drawImage(bcImg, bcX, bcY, bcW, bcH); } catch(e) {}
+      // Barcode fills from bodyTop to LH (full left column)
+      var bX = 0;
+      var bY = L.bodyTop * sc;
+      var bW = L.bcColW * sc;
+      var bH = (L.LH - L.bodyTop) * sc;
+      try { ctx.drawImage(bcImg, bX, bY, bW, bH); } catch(e) {}
     }
   }
 }
@@ -723,47 +815,6 @@ function wrapText(ctx, text, maxW) {
   return lines;
 }
 
-// ─── BARCODE ─────────────────────────────────────────────────
-
-function generateBarcodeDataUrl(text, showSKU, barWidth) {
-  var srcCanvas = document.createElement('canvas');
-  var bw = barWidth || 4;
-  try {
-    JsBarcode(srcCanvas, text, {
-      format: 'CODE128', width: bw, height: 200,
-      fontSize: 28, margin: 8, displayValue: showSKU !== false, font: 'monospace', textMargin: 6,
-    });
-  } catch(e) {
-    console.error('Barcode generation failed:', e);
-    return null;
-  }
-
-  // Rotate 90° CW for vertical placement (SKU text on left)
-  var w = srcCanvas.width;
-  var h = srcCanvas.height;
-  var rotCanvas = document.createElement('canvas');
-  rotCanvas.width = h;
-  rotCanvas.height = w;
-  var ctx = rotCanvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, h, w);
-  // Rotate around center
-  ctx.translate(h / 2, w / 2);
-  ctx.rotate(Math.PI / 2);
-  ctx.drawImage(srcCanvas, -w / 2, -h / 2);
-
-  return rotCanvas.toDataURL('image/png');
-}
-
-function loadImageAsDataUrl(file) {
-  return new Promise(function(resolve, reject) {
-    var reader = new FileReader();
-    reader.onload = function(e) { resolve(e.target.result); };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 // ─── PDF GENERATION ──────────────────────────────────────────
 
 async function generateLabels() {
@@ -779,8 +830,8 @@ async function generateLabels() {
 
   try {
     var settings = getSettings();
-
-    var LW = 70, LH = 110, PAD = 2, LINE_W = 0.3;
+    var L = calcLayout(settings);
+    var LW = L.LW, LH = L.LH, PAD = 2, LINE_W = 0.3;
     var doc = new jsPDF({ unit: 'mm', format: [LW, LH] });
 
     // Pre-load illustrations
@@ -793,7 +844,6 @@ async function generateLabels() {
       var row = csvData[i];
       if (i > 0) doc.addPage([LW, LH]);
 
-      // Use SKU as-is if it already ends with the size, otherwise append size
       var rawSku = (row.sku || '').trim();
       var rawSize = (row.size || '').trim();
       var skuFull = rawSku.endsWith('-' + rawSize) ? rawSku : rawSku + '-' + rawSize;
@@ -804,10 +854,7 @@ async function generateLabels() {
       doc.setDrawColor(0);
       doc.setLineWidth(LINE_W);
 
-      // TITLE ZONE (top 22mm)
-      var titleBottom = settings.showTitle ? 22 : 0;
-      if (settings.showDividers && settings.showTitle) doc.line(0, titleBottom, LW, titleBottom);
-
+      // ── Title ──
       if (settings.showTitle) {
         doc.setFont('helvetica', 'bold');
         var titleMaxW = LW - 2 * PAD;
@@ -818,54 +865,61 @@ async function generateLabels() {
           titleLines = doc.splitTextToSize(title, titleMaxW);
           lineH = titleFontSize * 0.45;
           textBlockH = titleLines.length * lineH;
-          if (textBlockH <= titleBottom - 4) break;
+          if (textBlockH <= L.titleH - 4) break;
           titleFontSize -= 1;
         }
-        var titleStartY = titleBottom / 2 - textBlockH / 2 + lineH * 0.6;
+        var titleStartY = L.titleH / 2 - textBlockH / 2 + lineH * 0.6;
         titleLines.forEach(function(line, idx) {
           doc.text(line, PAD, titleStartY + idx * lineH);
         });
       }
 
-      // FOOTER ZONE (bottom 12mm)
-      var hasFooter = settings.showColour || settings.showSizeFooter;
-      var footerTop = hasFooter ? LH - 12 : LH;
-      if (settings.showDividers && hasFooter) doc.line(0, footerTop, LW, footerTop);
-      if (hasFooter) {
+      // ── Title divider (full width) ──
+      if (settings.showDividers && settings.showTitle) {
+        doc.line(0, L.titleBottom, LW, L.titleBottom);
+      }
+
+      // ── Footer ──
+      if (L.hasFooter) {
+        // Footer divider — only on right side if barcode present
+        if (settings.showDividers) {
+          var fDivX = settings.showBarcode ? L.bcColW : 0;
+          doc.line(fDivX, L.footerTop, LW, L.footerTop);
+        }
+
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(settings.footerFontSize);
         var footerRightX = LW - PAD;
+
         if (settings.showColour && settings.showSizeFooter) {
-          doc.text('COLOUR: ' + color, footerRightX, footerTop + 4.5, { align: 'right' });
-          doc.text('SIZE: ' + size, footerRightX, footerTop + 8.5, { align: 'right' });
+          doc.text('COLOUR: ' + color, footerRightX, L.footerTop + 4.5, { align: 'right' });
+          doc.text('SIZE: ' + size, footerRightX, L.footerTop + 8.5, { align: 'right' });
         } else if (settings.showColour) {
-          doc.text('COLOUR: ' + color, footerRightX, footerTop + 7, { align: 'right' });
+          doc.text('COLOUR: ' + color, footerRightX, L.footerTop + 7, { align: 'right' });
         } else if (settings.showSizeFooter) {
-          doc.text('SIZE: ' + size, footerRightX, footerTop + 7, { align: 'right' });
+          doc.text('SIZE: ' + size, footerRightX, L.footerTop + 7, { align: 'right' });
         }
       }
 
-      // BODY ZONE
-      var bodyTop = titleBottom;
-      var bodyBottom = footerTop;
-      var bodyH = bodyBottom - bodyTop;
-
-      var bcColW = LW * settings.bcWidth;
-      if (settings.showDividers) doc.line(bcColW, bodyTop, bcColW, bodyBottom);
-
-      var sizeZoneH = bodyH * 0.38;
-      var sizeZoneBottom = bodyTop + sizeZoneH;
-      if (settings.showDividers && (settings.showSize || settings.showIllustration)) doc.line(bcColW, sizeZoneBottom, LW, sizeZoneBottom);
-
-      // Size number
-      var sizeCenterX = bcColW + (LW - bcColW) / 2;
-      if (settings.showSize) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(52);
-        doc.text(String(size), sizeCenterX, bodyTop + sizeZoneH / 2 + 7, { align: 'center' });
+      // ── Vertical barcode/right divider ──
+      if (settings.showDividers && L.bcColW < LW) {
+        doc.line(L.bcColW, L.bodyTop, L.bcColW, L.footerTop);
       }
 
-      // Illustration — try exact match, then with/without extension
+      // ── Size / illustration horizontal divider (right side only) ──
+      if (settings.showDividers && (settings.showSize || settings.showIllustration) && L.bcColW < LW) {
+        doc.line(L.bcColW, L.sizeZoneBottom, LW, L.sizeZoneBottom);
+      }
+
+      // ── Size number ──
+      var sizeCenterX = L.rightX + L.rightW / 2;
+      if (settings.showSize && L.rightW > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(52);
+        doc.text(String(size), sizeCenterX, L.bodyTop + L.sizeZoneH / 2 + 7, { align: 'center' });
+      }
+
+      // ── Illustration ──
       var illustFile = (row.illustration_file || '').trim();
       var illustDataUrl = illustrationDataUrls[illustFile]
         || illustrationDataUrls[illustFile + '.png']
@@ -873,11 +927,12 @@ async function generateLabels() {
         || illustrationDataUrls[illustFile + '.jpeg']
         || illustrationDataUrls[illustFile.replace(/\.(png|jpg|jpeg|webp)$/i, '')]
         || null;
-      if (settings.showIllustration && illustFile && illustDataUrl) {
-        var illMaxW = (LW - bcColW) - 2 * PAD;
-        var illMaxH = (bodyBottom - sizeZoneBottom) - 2 * PAD;
-        var illX = bcColW + PAD;
-        var illY = sizeZoneBottom + PAD;
+
+      if (settings.showIllustration && illustFile && illustDataUrl && L.rightW > 0) {
+        var illMaxW = L.rightW - 2 * PAD;
+        var illMaxH = (L.footerTop - L.sizeZoneBottom) - 2 * PAD;
+        var illX = L.rightX + PAD;
+        var illY = L.sizeZoneBottom + PAD;
 
         var tmpImg = new Image();
         await new Promise(function(resolve) {
@@ -890,30 +945,28 @@ async function generateLabels() {
         var offsetX = illX + (illMaxW - drawW) / 2;
         var offsetY = illY + (illMaxH - drawH) / 2;
         doc.addImage(illustDataUrl, 'PNG', offsetX, offsetY, drawW, drawH);
-      } else if (illustFile) {
+      } else if (settings.showIllustration && illustFile && L.rightW > 0) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(6);
-        doc.text('[' + illustFile + ']', sizeCenterX, sizeZoneBottom + (bodyBottom - sizeZoneBottom) / 2, { align: 'center' });
+        doc.text('[' + illustFile + ']', sizeCenterX, L.sizeZoneBottom + (L.footerTop - L.sizeZoneBottom) / 2, { align: 'center' });
       }
 
-      // Barcode (rotated 90° CW via canvas) — spans full left column from title to label bottom
-      var barcodeDataUrl = settings.showBarcode ? generateBarcodeDataUrl(skuFull, settings.showSKU, settings.barThickness) : null;
-      if (barcodeDataUrl) {
-        var bcMargin = 1;
-        var bcX = bcMargin;
-        var bcY = bodyTop + bcMargin;
-        var bcW = bcColW - 2 * bcMargin;
-        var bcFullH = LH - bodyTop - 2 * bcMargin; // full height to label bottom
-        try {
-          doc.addImage(barcodeDataUrl, 'PNG', bcX, bcY, bcW, bcFullH);
-        } catch(e) {
-          console.error('Failed to add barcode image:', e);
+      // ── Barcode (fills from bodyTop to LH — full left column) ──
+      if (settings.showBarcode) {
+        var barcodeDataUrl = generateBarcodeDataUrl(skuFull, settings.showSKU, settings.barThickness);
+        if (barcodeDataUrl) {
+          // No margin — fill edge to edge
+          var bcX = 0;
+          var bcY = L.bodyTop;
+          var bcW = L.bcColW;
+          var bcH = LH - L.bodyTop;
+          try {
+            doc.addImage(barcodeDataUrl, 'PNG', bcX, bcY, bcW, bcH);
+          } catch(e) {
+            console.error('Failed to add barcode image:', e);
+          }
         }
-      } else {
-        console.error('Barcode generation returned null for:', skuFull);
       }
-
-      // SKU text is now part of the barcode image (displayValue: true), rotated together
 
       progressBar.style.width = ((i + 1) / csvData.length * 100) + '%';
       await new Promise(function(r) { setTimeout(r, 0); });
@@ -932,7 +985,7 @@ async function generateLabels() {
   }
 }
 
-// Initial preview on page load
+// Initial preview
 updatePreview();
 </script>
 </body>
