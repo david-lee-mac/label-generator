@@ -223,12 +223,24 @@
       </div>
     </div>
 
-    <div class="settings-detail" id="settingsDetail">
+    <div id="settingsDetail">
       <div class="settings-section">
         <div class="settings-section-title">Barcode</div>
         <div class="slider-row">
-          <label>Barcode width <span class="slider-value" id="bcWidthVal">50%</span></label>
-          <input type="range" id="bcWidthSlider" min="30" max="70" value="50" oninput="document.getElementById('bcWidthVal').textContent=this.value+'%'; updatePreview()">
+          <label>Barcode column width <span class="slider-value" id="bcWidthVal">50%</span></label>
+          <input type="range" id="bcWidthSlider" min="30" max="100" value="50" oninput="document.getElementById('bcWidthVal').textContent=this.value+'%'; updatePreview()">
+        </div>
+        <div class="slider-row">
+          <label>Bar thickness <span class="slider-value" id="barThickVal">4</span></label>
+          <input type="range" id="barThickSlider" min="1" max="6" value="4" oninput="document.getElementById('barThickVal').textContent=this.value; updatePreview()">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Footer</div>
+        <div class="slider-row">
+          <label>Footer font size <span class="slider-value" id="footerFontVal">8pt</span></label>
+          <input type="range" id="footerFontSlider" min="6" max="14" value="8" oninput="document.getElementById('footerFontVal').textContent=this.value+'pt'; updatePreview()">
         </div>
       </div>
 
@@ -519,10 +531,9 @@ function selectTemplate(tpl) {
   currentTemplate = tpl;
   document.getElementById('tplFull').classList.toggle('active', tpl === 'full');
   document.getElementById('tplBarcode').classList.toggle('active', tpl === 'barcode');
-  document.getElementById('settingsDetail').classList.toggle('collapsed', tpl === 'barcode');
 
   if (tpl === 'barcode') {
-    // Force settings for barcode-only template
+    // Set defaults for barcode-only (user can still toggle)
     document.getElementById('showBarcode').checked = true;
     document.getElementById('showSKU').checked = true;
     document.getElementById('showTitle').checked = true;
@@ -531,6 +542,20 @@ function selectTemplate(tpl) {
     document.getElementById('showColour').checked = false;
     document.getElementById('showSizeFooter').checked = false;
     document.getElementById('showDividers').checked = false;
+    document.getElementById('bcWidthSlider').value = 100;
+    document.getElementById('bcWidthVal').textContent = '100%';
+  } else {
+    // Restore full label defaults
+    document.getElementById('showBarcode').checked = true;
+    document.getElementById('showSKU').checked = true;
+    document.getElementById('showTitle').checked = true;
+    document.getElementById('showSize').checked = true;
+    document.getElementById('showIllustration').checked = true;
+    document.getElementById('showColour').checked = true;
+    document.getElementById('showSizeFooter').checked = true;
+    document.getElementById('showDividers').checked = true;
+    document.getElementById('bcWidthSlider').value = 50;
+    document.getElementById('bcWidthVal').textContent = '50%';
   }
   updatePreview();
 }
@@ -541,6 +566,8 @@ function getSettings() {
   var s = {
     template: currentTemplate,
     bcWidth: parseInt(document.getElementById('bcWidthSlider').value) / 100,
+    barThickness: parseInt(document.getElementById('barThickSlider').value),
+    footerFontSize: parseInt(document.getElementById('footerFontSlider').value),
     showTitle: document.getElementById('showTitle').checked,
     showBarcode: document.getElementById('showBarcode').checked,
     showSKU: document.getElementById('showSKU').checked,
@@ -550,15 +577,6 @@ function getSettings() {
     showSizeFooter: document.getElementById('showSizeFooter').checked,
     showDividers: document.getElementById('showDividers').checked,
   };
-  // Barcode-only: barcode fills entire label below title
-  if (s.template === 'barcode') {
-    s.bcWidth = 1.0;
-    s.showSize = false;
-    s.showIllustration = false;
-    s.showColour = false;
-    s.showSizeFooter = false;
-    s.showDividers = false;
-  }
   return s;
 }
 
@@ -614,17 +632,16 @@ function updatePreview() {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     var footerMidY = footerTop + (H - footerTop) / 2;
+    var ffs = s.footerFontSize * scale / 4;
+    ctx.font = ffs + 'px -apple-system, sans-serif';
     if (s.showColour && s.showSizeFooter) {
-      ctx.font = (8 * scale / 4) + 'px -apple-system, sans-serif';
       ctx.textBaseline = 'top';
       var fy = footerTop + 4 * scale / 2;
       ctx.fillText('COLOUR: ' + sampleColour, W - 2 * scale, fy); fy += 4 * scale;
       ctx.fillText('SIZE: ' + sampleSize, W - 2 * scale, fy);
     } else if (s.showColour) {
-      ctx.font = (10 * scale / 4) + 'px -apple-system, sans-serif';
       ctx.fillText('COLOUR: ' + sampleColour, W - 2 * scale, footerMidY);
     } else if (s.showSizeFooter) {
-      ctx.font = (10 * scale / 4) + 'px -apple-system, sans-serif';
       ctx.fillText('SIZE: ' + sampleSize, W - 2 * scale, footerMidY);
     }
     ctx.textAlign = 'left';
@@ -679,7 +696,7 @@ function updatePreview() {
     var bcW = bcColW - 2 * bcM;
     var bcH = H - bodyTop - 2 * bcM;
 
-    var bcDataUrl = generateBarcodeDataUrl(sampleSku, s.showSKU);
+    var bcDataUrl = generateBarcodeDataUrl(sampleSku, s.showSKU, s.barThickness);
     if (bcDataUrl) {
       var bcImg = new Image();
       bcImg.src = bcDataUrl;
@@ -708,11 +725,12 @@ function wrapText(ctx, text, maxW) {
 
 // ─── BARCODE ─────────────────────────────────────────────────
 
-function generateBarcodeDataUrl(text, showSKU) {
+function generateBarcodeDataUrl(text, showSKU, barWidth) {
   var srcCanvas = document.createElement('canvas');
+  var bw = barWidth || 4;
   try {
     JsBarcode(srcCanvas, text, {
-      format: 'CODE128', width: 4, height: 200,
+      format: 'CODE128', width: bw, height: 200,
       fontSize: 28, margin: 8, displayValue: showSKU !== false, font: 'monospace', textMargin: 6,
     });
   } catch(e) {
@@ -815,19 +833,14 @@ async function generateLabels() {
       if (settings.showDividers && hasFooter) doc.line(0, footerTop, LW, footerTop);
       if (hasFooter) {
         doc.setFont('helvetica', 'normal');
+        doc.setFontSize(settings.footerFontSize);
         var footerRightX = LW - PAD;
         if (settings.showColour && settings.showSizeFooter) {
-          // Both shown — normal size
-          doc.setFontSize(8);
           doc.text('COLOUR: ' + color, footerRightX, footerTop + 4.5, { align: 'right' });
           doc.text('SIZE: ' + size, footerRightX, footerTop + 8.5, { align: 'right' });
         } else if (settings.showColour) {
-          // Only colour — slightly larger, centered
-          doc.setFontSize(10);
           doc.text('COLOUR: ' + color, footerRightX, footerTop + 7, { align: 'right' });
         } else if (settings.showSizeFooter) {
-          // Only size — slightly larger, centered
-          doc.setFontSize(10);
           doc.text('SIZE: ' + size, footerRightX, footerTop + 7, { align: 'right' });
         }
       }
@@ -884,7 +897,7 @@ async function generateLabels() {
       }
 
       // Barcode (rotated 90° CW via canvas) — spans full left column from title to label bottom
-      var barcodeDataUrl = settings.showBarcode ? generateBarcodeDataUrl(skuFull, settings.showSKU) : null;
+      var barcodeDataUrl = settings.showBarcode ? generateBarcodeDataUrl(skuFull, settings.showSKU, settings.barThickness) : null;
       if (barcodeDataUrl) {
         var bcMargin = 1;
         var bcX = bcMargin;
