@@ -224,20 +224,20 @@
       <div class="settings-section">
         <div class="settings-section-title">Barcode</div>
         <div class="slider-row">
-          <label>Barcode column width <span class="slider-value" id="bcWidthVal">50%</span></label>
-          <input type="range" id="bcWidthSlider" min="30" max="100" value="50" oninput="document.getElementById('bcWidthVal').textContent=this.value+'%'; updatePreview()">
+          <label>Barcode column width <span class="slider-value" id="bcWidthVal">45%</span></label>
+          <input type="range" id="bcWidthSlider" min="30" max="100" value="45" oninput="document.getElementById('bcWidthVal').textContent=this.value+'%'; updatePreview()">
         </div>
         <div class="slider-row">
-          <label>Bar thickness <span class="slider-value" id="barThickVal">4</span></label>
-          <input type="range" id="barThickSlider" min="1" max="6" value="4" oninput="document.getElementById('barThickVal').textContent=this.value; updatePreview()">
+          <label>Bar thickness <span class="slider-value" id="barThickVal">5</span></label>
+          <input type="range" id="barThickSlider" min="1" max="6" value="5" oninput="document.getElementById('barThickVal').textContent=this.value; updatePreview()">
         </div>
       </div>
 
       <div class="settings-section">
         <div class="settings-section-title">Footer</div>
         <div class="slider-row">
-          <label>Footer font size <span class="slider-value" id="footerFontVal">8pt</span></label>
-          <input type="range" id="footerFontSlider" min="6" max="14" value="8" oninput="document.getElementById('footerFontVal').textContent=this.value+'pt'; updatePreview()">
+          <label>Footer font size <span class="slider-value" id="footerFontVal">9pt</span></label>
+          <input type="range" id="footerFontSlider" min="6" max="14" value="9" oninput="document.getElementById('footerFontVal').textContent=this.value+'pt'; updatePreview()">
         </div>
       </div>
 
@@ -270,7 +270,7 @@
           </div>
           <div class="setting-item">
             <label for="showSizeFooter">Size (footer)</label>
-            <input type="checkbox" id="showSizeFooter" checked onchange="updatePreview()">
+            <input type="checkbox" id="showSizeFooter" onchange="updatePreview()">
           </div>
           <div class="setting-item">
             <label for="showDividers">Divider lines</label>
@@ -544,10 +544,14 @@ function selectTemplate(tpl) {
     document.getElementById('showSize').checked = true;
     document.getElementById('showIllustration').checked = true;
     document.getElementById('showColour').checked = true;
-    document.getElementById('showSizeFooter').checked = true;
+    document.getElementById('showSizeFooter').checked = false;
     document.getElementById('showDividers').checked = true;
-    document.getElementById('bcWidthSlider').value = 50;
-    document.getElementById('bcWidthVal').textContent = '50%';
+    document.getElementById('bcWidthSlider').value = 45;
+    document.getElementById('bcWidthVal').textContent = '45%';
+    document.getElementById('barThickSlider').value = 5;
+    document.getElementById('barThickVal').textContent = '5';
+    document.getElementById('footerFontSlider').value = 9;
+    document.getElementById('footerFontVal').textContent = '9pt';
   }
   updatePreview();
 }
