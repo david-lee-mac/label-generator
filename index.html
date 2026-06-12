@@ -231,6 +231,20 @@
           <label>Bar thickness <span class="slider-value" id="barThickVal">5</span></label>
           <input type="range" id="barThickSlider" min="1" max="6" value="5" oninput="document.getElementById('barThickVal').textContent=this.value; updatePreview()">
         </div>
+        <div class="slider-row">
+          <label>SKU font size <span class="slider-value" id="skuFontSizeVal">28</span></label>
+          <input type="range" id="skuFontSizeSlider" min="14" max="48" value="28" oninput="document.getElementById('skuFontSizeVal').textContent=this.value; updatePreview()">
+        </div>
+        <div class="slider-row">
+          <label>SKU font</label>
+          <select id="skuFontSelect" onchange="updatePreview()" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px; background:#fff;">
+            <option value="Arial" selected>Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="sans-serif">Sans-serif</option>
+            <option value="monospace">Monospace</option>
+            <option value="Courier New">Courier New</option>
+          </select>
+        </div>
       </div>
 
       <div class="settings-section">
@@ -552,6 +566,9 @@ function selectTemplate(tpl) {
     document.getElementById('barThickVal').textContent = '5';
     document.getElementById('footerFontSlider').value = 9;
     document.getElementById('footerFontVal').textContent = '9pt';
+    document.getElementById('skuFontSizeSlider').value = 28;
+    document.getElementById('skuFontSizeVal').textContent = '28';
+    document.getElementById('skuFontSelect').value = 'Arial';
   }
   updatePreview();
 }
@@ -572,6 +589,8 @@ function getSettings() {
     showColour: document.getElementById('showColour').checked,
     showSizeFooter: document.getElementById('showSizeFooter').checked,
     showDividers: document.getElementById('showDividers').checked,
+    skuFontSize: parseInt(document.getElementById('skuFontSizeSlider').value),
+    skuFont: document.getElementById('skuFontSelect').value,
   };
 }
 
@@ -619,17 +638,17 @@ function calcLayout(s) {
 
 // ─── BARCODE GENERATION ─────────────────────────────────────
 
-function generateBarcodeDataUrl(text, showSKU, barWidth) {
+function generateBarcodeDataUrl(text, showSKU, barWidth, skuFontSize, skuFont) {
   var srcCanvas = document.createElement('canvas');
   try {
     JsBarcode(srcCanvas, text, {
       format: 'CODE128',
       width: barWidth || 4,
       height: 200,
-      fontSize: 28,
+      fontSize: skuFontSize || 28,
       margin: 8,
       displayValue: showSKU !== false,
-      font: 'monospace',
+      font: skuFont || 'Arial',
       textMargin: 6,
     });
   } catch(e) {
@@ -788,7 +807,7 @@ function updatePreview() {
 
   // ── Barcode (real JsBarcode) with quiet zone padding ──
   if (s.showBarcode) {
-    var bcDataUrl = generateBarcodeDataUrl(d.sku, s.showSKU, s.barThickness);
+    var bcDataUrl = generateBarcodeDataUrl(d.sku, s.showSKU, s.barThickness, s.skuFontSize, s.skuFont);
     if (bcDataUrl) {
       var bcImg = new Image();
       bcImg.src = bcDataUrl;
@@ -957,7 +976,7 @@ async function generateLabels() {
 
       // ── Barcode with quiet zone padding ──
       if (settings.showBarcode) {
-        var barcodeDataUrl = generateBarcodeDataUrl(skuFull, settings.showSKU, settings.barThickness);
+        var barcodeDataUrl = generateBarcodeDataUrl(skuFull, settings.showSKU, settings.barThickness, settings.skuFontSize, settings.skuFont);
         if (barcodeDataUrl) {
           var bcPad = 2; // 2mm quiet zone
           var bcX = bcPad;
