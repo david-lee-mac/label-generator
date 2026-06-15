@@ -224,16 +224,16 @@
       <div class="settings-section">
         <div class="settings-section-title">Barcode</div>
         <div class="slider-row">
-          <label>Barcode column width <span class="slider-value" id="bcWidthVal">45%</span></label>
-          <input type="range" id="bcWidthSlider" min="30" max="100" value="45" oninput="document.getElementById('bcWidthVal').textContent=this.value+'%'; updatePreview()">
+          <label>Barcode column width <span class="slider-value" id="bcWidthVal">57%</span></label>
+          <input type="range" id="bcWidthSlider" min="30" max="100" value="57" oninput="document.getElementById('bcWidthVal').textContent=this.value+'%'; updatePreview()">
         </div>
         <div class="slider-row">
           <label>Bar thickness <span class="slider-value" id="barThickVal">5</span></label>
           <input type="range" id="barThickSlider" min="1" max="6" value="5" oninput="document.getElementById('barThickVal').textContent=this.value; updatePreview()">
         </div>
         <div class="slider-row">
-          <label>SKU font size <span class="slider-value" id="skuFontSizeVal">28</span></label>
-          <input type="range" id="skuFontSizeSlider" min="14" max="48" value="28" oninput="document.getElementById('skuFontSizeVal').textContent=this.value; updatePreview()">
+          <label>SKU font size <span class="slider-value" id="skuFontSizeVal">42</span></label>
+          <input type="range" id="skuFontSizeSlider" min="14" max="48" value="42" oninput="document.getElementById('skuFontSizeVal').textContent=this.value; updatePreview()">
         </div>
         <div class="slider-row">
           <label>SKU font</label>
@@ -250,8 +250,8 @@
       <div class="settings-section">
         <div class="settings-section-title">Footer</div>
         <div class="slider-row">
-          <label>Footer font size <span class="slider-value" id="footerFontVal">9pt</span></label>
-          <input type="range" id="footerFontSlider" min="6" max="14" value="9" oninput="document.getElementById('footerFontVal').textContent=this.value+'pt'; updatePreview()">
+          <label>Footer font size <span class="slider-value" id="footerFontVal">10pt</span></label>
+          <input type="range" id="footerFontSlider" min="6" max="14" value="10" oninput="document.getElementById('footerFontVal').textContent=this.value+'pt'; updatePreview()">
         </div>
       </div>
 
@@ -560,14 +560,14 @@ function selectTemplate(tpl) {
     document.getElementById('showColour').checked = true;
     document.getElementById('showSizeFooter').checked = false;
     document.getElementById('showDividers').checked = true;
-    document.getElementById('bcWidthSlider').value = 45;
-    document.getElementById('bcWidthVal').textContent = '45%';
+    document.getElementById('bcWidthSlider').value = 57;
+    document.getElementById('bcWidthVal').textContent = '57%';
     document.getElementById('barThickSlider').value = 5;
     document.getElementById('barThickVal').textContent = '5';
-    document.getElementById('footerFontSlider').value = 9;
-    document.getElementById('footerFontVal').textContent = '9pt';
-    document.getElementById('skuFontSizeSlider').value = 28;
-    document.getElementById('skuFontSizeVal').textContent = '28';
+    document.getElementById('footerFontSlider').value = 10;
+    document.getElementById('footerFontVal').textContent = '10pt';
+    document.getElementById('skuFontSizeSlider').value = 42;
+    document.getElementById('skuFontSizeVal').textContent = '42';
     document.getElementById('skuFontSelect').value = 'Arial';
   }
   updatePreview();
